@@ -12,8 +12,10 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type MultipartStreamer struct {
@@ -76,6 +78,30 @@ func (m *MultipartStreamer) WriteFile(key, filename string) error {
 	}
 
 	return m.WriteReader(key, filepath.Base(filename), stat.Size(), fh)
+}
+
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
+}
+
+// WritePart writes a multipart "part" with specified headers and content
+func (m *MultipartStreamer) WritePart(fieldname string, data io.Reader, headers map[string]string) error {
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(fieldname)))
+	for k, v := range headers {
+		h.Set(k, v)
+	}
+
+	part, err := m.bodyWriter.CreatePart(h)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(part, data)
+	return err
 }
 
 // SetupRequest sets up the http.Request body, and some crucial HTTP headers.
