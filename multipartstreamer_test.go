@@ -76,7 +76,7 @@ func TestMultipartFile(t *testing.T) {
 
 	part, err = reader.NextPart()
 	if err != io.EOF {
-		t.Errorf("Unexpected 3rd part: %s", part)
+		t.Errorf("Unexpected 3rd part: %v", part)
 	}
 }
 
@@ -119,6 +119,6 @@ func TestMultipartReader(t *testing.T) {
 
 	part, err = reader.NextPart()
 	if err != io.EOF {
-		t.Errorf("Unexpected 2nd part: %s", part)
+		t.Errorf("Unexpected 2nd part: %v", part)
 	}
 }
