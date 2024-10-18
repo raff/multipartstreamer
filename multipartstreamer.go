@@ -30,9 +30,9 @@ type MultipartStreamer struct {
 type MSOption func(ms *MultipartStreamer)
 
 func WithBoundary(b string) MSOption {
-    return func(ms *MultipartStreamer) {
-        ms.bodyWriter.SetBoundary(b)
-    }
+	return func(ms *MultipartStreamer) {
+		ms.bodyWriter.SetBoundary(b)
+	}
 }
 
 // New initializes a new MultipartStreamer.
@@ -40,9 +40,9 @@ func New(opts ...MSOption) (m *MultipartStreamer) {
 	m = &MultipartStreamer{bodyBuffer: new(bytes.Buffer)}
 	m.bodyWriter = multipart.NewWriter(m.bodyBuffer)
 
-        for _, fopt := range opts {
-            fopt(m)
-        }
+	for _, fopt := range opts {
+		fopt(m)
+	}
 
 	boundary := m.bodyWriter.Boundary()
 	m.ContentType = "multipart/form-data; boundary=" + boundary
@@ -67,8 +67,8 @@ func (m *MultipartStreamer) WriteFields(fields map[string]string) error {
 	return nil
 }
 
-// WriteReader adds an io.Reader to get the content of a file.  The reader is
-// not accessed until the multipart.Reader is copied to some output writer.
+// WriteReader adds an io.Reader to get the content of a file.
+// The reader is not accessed until the multipart.Reader is copied to some output writer.
 func (m *MultipartStreamer) WriteReader(key, filename string, size int64, reader io.Reader) (err error) {
 	m.reader = reader
 	m.contentLength = size
@@ -77,22 +77,30 @@ func (m *MultipartStreamer) WriteReader(key, filename string, size int64, reader
 	return
 }
 
-// WriteReaderWithSize adds an io.Reader to get the content of a file.  The reader is
-// not accessed until the multipart.Reader is copied to some output writer.
+// WriteReaderWithSize adds an io.Reader to get the content of a file.
+// The reader is not accessed until the multipart.Reader is copied to some output writer.
 func (m *MultipartStreamer) WriteReaderWithSize(key, filename string, size int64, reader io.Reader) (err error) {
-	m.reader = reader
-	m.contentLength = size
-
-        h := make(textproto.MIMEHeader)
-        h.Set("Content-Disposition",
-                fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-                        escapeQuotes(key), escapeQuotes(filename)))
-        h.Set("Content-Type", "application/octet-stream")
-        h.Set("Content-Length", fmt.Sprintf("%v", size))
-        _, err = m.bodyWriter.CreatePart(h)
-        return
+	return m.WriteReaderWithHeaders(key, filename, reader, map[string]any{
+		"Content-Type":   "application/octet-stream",
+		"Content-Length": size,
+	})
 }
 
+// WriteReaderWithHeaders adds an io.Reader to get the content of a file.
+// The reader is not accessed until the multipart.Reader is copied to some output writer.
+func (m *MultipartStreamer) WriteReaderWithHeaders(key, filename string, reader io.Reader, headers map[string]any) (err error) {
+	m.reader = reader
+	m.contentLength = (headers["Content-Length"].(int64))
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; filename="%s"`, escapeQuotes(key), escapeQuotes(filename)))
+	for k, v := range headers {
+		h.Set(k, fmt.Sprintf("%v", v))
+	}
+	_, err = m.bodyWriter.CreatePart(h)
+	return
+}
 
 // WriteFile is a shortcut for adding a local file as an io.Reader.
 func (m *MultipartStreamer) WriteFile(key, filename string) error {
